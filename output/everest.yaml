@@ -1,6 +1,0 @@
-- Name: CollabTeleport
-  Version: 0.0.1
-  DLL: collab-teleport.dll
-  Dependencies:
-  - Name: Everest
-    Version: 1.1992.0
