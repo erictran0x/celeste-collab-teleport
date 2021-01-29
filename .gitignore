@@ -6,3 +6,6 @@
 /collab-teleport/obj/Debug/netstandard2.0
 /collab-teleport/obj
 /.vs/collab-teleport
+/output
+/redist
+*.zip
