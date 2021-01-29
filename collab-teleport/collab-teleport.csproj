@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>collab_teleport</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Celeste">
+      <HintPath>..\redist\Celeste.exe</HintPath>
+    </Reference>
+    <Reference Include="FNA">
+      <HintPath>..\redist\FNA.dll</HintPath>
+    </Reference>
+    <Reference Include="MMHOOK_Celeste">
+      <HintPath>..\redist\MMHOOK_Celeste.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)output\$(ProjectName).dll&quot;&#xD;&#xA;cd &quot;$(SolutionDir)output&quot;&#xD;&#xA;7z a &quot;$(SolutionDir)\CollabTeleport.zip&quot;&#xD;&#xA;copy /Y &quot;$(SolutionDir)\CollabTeleport.zip&quot; &quot;C:\Program Files (x86)\Steam\steamapps\common\Celeste\Mods\CollabTeleport.zip&quot;" />
+  </Target>
+
+</Project>
