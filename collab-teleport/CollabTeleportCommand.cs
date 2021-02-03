@@ -21,11 +21,11 @@ namespace Celeste.Mod.CollabTeleport
                 return;
             }
 
-            // Remove collab levels if completed level or gym-type level
+            // Remove collab levels if completed
             List<EntityData> filteredLevels = CollabTeleportModule.Instance.collabChapters.FindAll(t =>
             {
                 bool success = CollabTeleportModule.Instance.foundAreas.TryGetValue(t.Attr("map"), out AreaStats a);
-                return success && !a.SID.Contains($"/0-Gyms/") && !a.Modes[0].Completed;
+                return success && !a.Modes[0].Completed;
             });
 
             // Check if there are no noncompleted collab levels left - return if so

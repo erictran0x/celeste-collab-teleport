@@ -38,7 +38,6 @@ namespace Celeste.Mod.CollabTeleport
                 foundAreas.Clear();
             }
 
-            Console.WriteLine($"New level loaded: {level.Session.LevelData.Name}");
             currentLevel = level;
 
             // Get all ChapterPanelTriggers from current level
@@ -56,12 +55,15 @@ namespace Celeste.Mod.CollabTeleport
                     LevelSetStats lss = SaveData.Instance.GetLevelSetStatsFor(dir);
                     foreach (AreaStats a in lss.Areas)
                     {
+                        // Ignore gyms and lobbies
+                        if (a.SID.Contains("/0-Gyms/") || a.SID.Contains("/0-Lobbies/"))
+                            continue;
+
                         foundAreas.Add(a.SID, a);
                         if (a.SID.Equals(name))
                             area = a;
                     }
                 }
-                Console.WriteLine($"{area.SID} - {area.Modes[0].Completed}");
             }
         }
     }
