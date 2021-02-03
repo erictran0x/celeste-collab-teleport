@@ -2,6 +2,7 @@
 using Monocle;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace Celeste.Mod.CollabTeleport
@@ -20,29 +21,36 @@ namespace Celeste.Mod.CollabTeleport
                 return;
             }
 
-            // Filter collab levels by non-completion
-            List<EntityData> noncompleted = CollabTeleportModule.Instance.collabChapters.FindAll(t =>
+            // Remove collab levels if completed level or gym-type level
+            List<EntityData> filteredLevels = CollabTeleportModule.Instance.collabChapters.FindAll(t =>
             {
                 bool success = CollabTeleportModule.Instance.foundAreas.TryGetValue(t.Attr("map"), out AreaStats a);
-                return success && !a.Modes[0].Completed;
+                return success /* && !a.SID.Contains($"/0-Gyms/") */ && !a.Modes[0].Completed;
             });
 
             // Check if there are no noncompleted collab levels left - return if so
-            if (noncompleted.Count == 0)
+            if (filteredLevels.Count == 0)
             {
                 Engine.Commands.Log("No noncompleted collab levels found.");
                 return;
             }
 
-            Engine.Commands.Log($"{noncompleted.Count} noncompleted collab levels found.");
+            Engine.Commands.Log($"{filteredLevels.Count} noncompleted collab levels found.");
 
+            // Find closest collab level from player
             float minDist = float.PositiveInfinity;
             Vector2 pos = player.Position;
             int w = 0, h = 0;
             string nextMap = "unknown";
-            foreach (EntityData t in noncompleted)
+            foreach (EntityData t in filteredLevels)
             {
                 string name = t.Attr("map");
+
+                // Ignore heart-side if there is more than one collab level available
+                if (filteredLevels.Count > 1 && name.EndsWith("ZZ-HeartSide"))
+                    continue;
+
+                // Calculate distance if area exists
                 if (CollabTeleportModule.Instance.foundAreas.TryGetValue(name, out AreaStats area))
                 {
                     // Calculate horizontal distance
@@ -68,24 +76,33 @@ namespace Celeste.Mod.CollabTeleport
 
             // Find open air in trigger box
             // Bruteforce for now since I'm too stupid to find a better solution
-            for (int j = h; j >= 0; j -= 8)
+            for (int j = 0; j <= h/2; j += 4)  // middle to vertical edges
             {
-                for (int i = 0; i <= w; i += 7)
+                for (int i = 0; i <= w; i += 7)  // left to right
                 {
-                    Vector2 v = new Vector2(pos.X + i, pos.Y + j);
-                    if (!player.CollideCheck<Solid>(v))
+                    Vector2 v_top = new Vector2(pos.X + i, pos.Y + h/2 - j);
+                    Vector2 v_bot = new Vector2(pos.X + i, pos.Y + h/2 + j);
+                    if (!player.CollideCheck<Solid>(v_top))
                     {
                         // Teleport player to position
-                        Engine.Commands.Log($"Found open spot at {v} - teleporting to {nextMap} .");
-                        player.X = v.X;
-                        player.Y = v.Y;
+                        Engine.Commands.Log($"Found open spot at {v_top} - teleporting to {nextMap} .");
+                        player.X = v_top.X;
+                        player.Y = v_top.Y;
+                        return;
+                    }
+                    if (!player.CollideCheck<Solid>(v_bot))
+                    {
+                        // Teleport player to position
+                        Engine.Commands.Log($"Found open spot at {v_bot} - teleporting to {nextMap} .");
+                        player.X = v_bot.X;
+                        player.Y = v_bot.Y;
                         return;
                     }
                 }
             }
 
             // Can't find open air - do nothing
-            Engine.Commands.Log($"No open spot found in trigger at {pos} .");
+            Engine.Commands.Log($"No open spot found in trigger near {pos} .");
         }
     }
 }
