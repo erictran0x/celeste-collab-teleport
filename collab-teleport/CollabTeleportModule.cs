@@ -6,11 +6,15 @@ namespace Celeste.Mod.CollabTeleport
     public class CollabTeleportModule : EverestModule
     {
         public static CollabTeleportModule Instance;
-        private int fileSlot = -9999;
+        public override Type SettingsType => typeof(CollabTeleportSettings);
+        public static CollabTeleportSettings Settings => (CollabTeleportSettings)Instance._Settings;
+
+        private bool autoTPed = false;
 
         public Dictionary<string, AreaStats> foundAreas;
         public List<EntityData> collabChapters;
         public Level currentLevel;
+        private Player currentPlayer;
 
         public CollabTeleportModule()
         {
@@ -22,23 +26,29 @@ namespace Celeste.Mod.CollabTeleport
         public override void Load()
         {
             Everest.Events.Level.OnLoadLevel += OnLevelLoad;
+            Everest.Events.Level.OnExit += OnLevelExit;
+            Everest.Events.Player.OnSpawn += OnPlayerSpawn;
         }
 
         public override void Unload()
         {
             Everest.Events.Level.OnLoadLevel -= OnLevelLoad;
+            Everest.Events.Level.OnExit -= OnLevelExit;
+            Everest.Events.Player.OnSpawn -= OnPlayerSpawn;
         }
 
-        public void OnLevelLoad(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
+        private void OnLevelLoad(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
         {
-            // Check if file slot is the same - clear found areas if not
-            if (fileSlot != SaveData.Instance.FileSlot)
-            {
-                fileSlot = SaveData.Instance.FileSlot;
-                foundAreas.Clear();
-            }
-
+            // Init current status
+            foundAreas.Clear();
             currentLevel = level;
+
+            // Only handle lobbies
+            if (!level.Session.Area.SID.Contains("/0-Lobbies/"))
+            {
+                autoTPed = false;
+                return;
+            }
 
             // Get all ChapterPanelTriggers from current level
             collabChapters = level.Session.LevelData.Triggers.FindAll(t => t.Name.Equals("CollabUtils2/ChapterPanelTrigger"));
@@ -47,8 +57,7 @@ namespace Celeste.Mod.CollabTeleport
             foreach (EntityData t in collabChapters)
             {
                 string name = t.Attr("map");
-                AreaStats area = null;
-                if (!foundAreas.TryGetValue(name, out area))
+                if (!foundAreas.ContainsKey(name))
                 {
                     // Find the area we want (might want to store nearby ones)
                     string dir = name.Substring(0, name.LastIndexOf("/"));
@@ -60,11 +69,26 @@ namespace Celeste.Mod.CollabTeleport
                             continue;
 
                         foundAreas.Add(a.SID, a);
-                        if (a.SID.Equals(name))
-                            area = a;
                     }
                 }
             }
+
+            // Only auto-teleport player once
+            if (currentPlayer != null && !autoTPed && level.Session.Area.SID.Contains("/0-Lobbies/") && Settings.AutoTeleportOnComplete)
+            {
+                CollabTeleportCommand.TeleportToNextCollabLevel(currentPlayer);
+                autoTPed = true;
+            }
+        }
+
+        private void OnLevelExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)
+        {
+            autoTPed = false;
+        }
+
+        private void OnPlayerSpawn(Player obj)
+        {
+            currentPlayer = obj;
         }
     }
 }
