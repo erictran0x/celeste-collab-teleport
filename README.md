@@ -11,4 +11,4 @@ This mod adds a new debug command `collabtp` that performs this procedure.
 Build the solution, package it s.t. Everest can read it, and place it in your Mods folder.
 
 # TODO
-- Low priority: keybind that acts the same way as typing in the command
+- Submit a release to gamebanana
