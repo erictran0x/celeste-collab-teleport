@@ -95,6 +95,14 @@ namespace Celeste.Mod.CollabTeleport
                 // Teleport player to position
                 Engine.Commands.Log($"Teleporting to {nextMap} .");
                 player.Position = v.Value;
+
+                // Set player state to normal if it is currently in an intro-type (entering chapter)
+                if (player.StateMachine.State >= 12 && player.StateMachine.State <= 15 || player.StateMachine.State == 23 || player.StateMachine.State == 25)
+                    player.StateMachine.State = 0;
+
+                // "Teleport" camera to its target - it'll micro-adjust but would be near player
+                player.CameraAnchorLerp = Vector2.Zero;
+                CollabTeleportModule.Instance.currentLevel.Camera.Position = player.CameraTarget;
             }
             else
             {
