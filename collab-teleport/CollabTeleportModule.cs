@@ -13,6 +13,7 @@ namespace Celeste.Mod.CollabTeleport
 
         public Dictionary<string, AreaStats> foundAreas;
         public Dictionary<string, string> levelnameToDirectory;
+        public Dictionary<string, EntityID> silverBerries;
         public List<EntityData> collabChapters;
         public Level currentLevel;
         private Player currentPlayer;
@@ -45,6 +46,7 @@ namespace Celeste.Mod.CollabTeleport
             foundAreas.Clear();
             levelnameToDirectory.Clear();
             currentLevel = level;
+            string levelset = null;
 
             // Only handle lobbies
             if (!level.Session.Area.SID.Contains("/0-Lobbies/"))
@@ -60,25 +62,27 @@ namespace Celeste.Mod.CollabTeleport
             foreach (EntityData t in collabChapters)
             {
                 string name = t.Attr("map");
+
+                // Ignore gyms and lobbies
+                if (name.Contains("/0-Gyms/") || name.Contains("/0-Lobbies/"))
+                    continue;
+
+                AreaKey ak = AreaData.Get(name).ToKey();
+                levelset = ak.LevelSet;
+
                 if (!foundAreas.ContainsKey(name))
                 {
-                    // Find the area we want (might want to store nearby ones)
-                    string dir = name.Substring(0, name.LastIndexOf("/"));
-                    LevelSetStats lss = SaveData.Instance.GetLevelSetStatsFor(dir);
-                    foreach (AreaStats a in lss.Areas)
-                    {
-                        // Ignore gyms and lobbies
-                        if (a.SID.Contains("/0-Gyms/") || a.SID.Contains("/0-Lobbies/"))
-                            continue;
-
-                        foundAreas.Add(a.SID, a);
-                        levelnameToDirectory.Add(Dialog.Get(a.SID).ToLower(), a.SID);
-                    }
+                    foundAreas.Add(name, SaveData.Instance.GetAreaStatsFor(ak));
+                    levelnameToDirectory.Add(Dialog.Get(name).ToLower(), name);
                 }
             }
 
+            // Get silver and speed berry data
+            silverBerries = CollabUtils2Helper.GetAllSilverBerries(levelset);
+            // TODO: get speed berry data
+
             // Only auto-teleport player once
-            if (currentPlayer != null && !autoTPed && level.Session.Area.SID.Contains("/0-Lobbies/") && Settings.AutoTeleportOnComplete)
+            if (currentPlayer != null && !autoTPed && Settings.AutoTeleportOnComplete)
             {
                 CollabTeleportCommand.TeleportToCollabLevel(currentPlayer, (string)null, false);
                 autoTPed = true;

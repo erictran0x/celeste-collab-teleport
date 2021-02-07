@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Celeste.Mod.CollabTeleport
+﻿namespace Celeste.Mod.CollabTeleport
 {
     public class CollabTeleportSettings : EverestModuleSettings
     {
