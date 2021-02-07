@@ -12,6 +12,7 @@ namespace Celeste.Mod.CollabTeleport
         private bool autoTPed = false;
 
         public Dictionary<string, AreaStats> foundAreas;
+        public Dictionary<string, string> levelnameToDirectory;
         public List<EntityData> collabChapters;
         public Level currentLevel;
         private Player currentPlayer;
@@ -20,6 +21,7 @@ namespace Celeste.Mod.CollabTeleport
         {
             Instance = this;
             foundAreas = new Dictionary<string, AreaStats>();
+            levelnameToDirectory = new Dictionary<string, string>();
             collabChapters = new List<EntityData>();
         }
 
@@ -41,6 +43,7 @@ namespace Celeste.Mod.CollabTeleport
         {
             // Init current status
             foundAreas.Clear();
+            levelnameToDirectory.Clear();
             currentLevel = level;
 
             // Only handle lobbies
@@ -69,6 +72,7 @@ namespace Celeste.Mod.CollabTeleport
                             continue;
 
                         foundAreas.Add(a.SID, a);
+                        levelnameToDirectory.Add(Dialog.Get(a.SID).ToLower(), a.SID);
                     }
                 }
             }
@@ -76,7 +80,7 @@ namespace Celeste.Mod.CollabTeleport
             // Only auto-teleport player once
             if (currentPlayer != null && !autoTPed && level.Session.Area.SID.Contains("/0-Lobbies/") && Settings.AutoTeleportOnComplete)
             {
-                CollabTeleportCommand.TeleportToNextCollabLevel(currentPlayer);
+                CollabTeleportCommand.TeleportToCollabLevel(currentPlayer, (string)null, false);
                 autoTPed = true;
             }
         }

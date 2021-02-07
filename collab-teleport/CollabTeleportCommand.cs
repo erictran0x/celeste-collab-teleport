@@ -7,19 +7,67 @@ namespace Celeste.Mod.CollabTeleport
 {
     public class CollabTeleportCommand
     {
-        [Command("collabtp", "Teleports to nearest noncompleted collab level.")]
-        public static void HandleCollabTP()
+        [Command("collabtp", "Teleports to specified collab level (replace spaces with underscores). Default: nearest noncompleted")]
+        public static void HandleCollabTP(string mapname)
         {
-            TeleportToNextCollabLevel(Engine.Scene.Tracker.GetEntity<Player>());
+            TeleportToCollabLevel(Engine.Scene.Tracker.GetEntity<Player>(), mapname, true);
         }
 
-        public static void TeleportToNextCollabLevel(Player player)
+        [Command("collablist", "List all collab levels.")]
+        public static void HandleCollabList()
+        {
+            Engine.Commands.Log(string.Join(", ", CollabTeleportModule.Instance.levelnameToDirectory.Keys));
+        }
+
+        public static void TeleportToCollabLevel(Player player, string mapname, bool logToConsole)
+        {
+            if (!string.IsNullOrEmpty(mapname))
+            {
+                // Check if map can be searched by name - stop exec if not found
+                if (!CollabTeleportModule.Instance.levelnameToDirectory.TryGetValue(mapname.Replace("_", " ").ToLower(), out string dir))
+                {
+                    if (logToConsole)
+                        Engine.Commands.Log($"Unable to find {mapname} .");
+                    return;
+                }
+
+                if (dir.EndsWith("ZZ-HeartSide"))
+                {
+                    // Remove collab levels if completed
+                    List<EntityData> filteredLevels = CollabTeleportModule.Instance.collabChapters.FindAll(t =>
+                    {
+                        bool success = CollabTeleportModule.Instance.foundAreas.TryGetValue(t.Attr("map"), out AreaStats a);
+                        return success && !a.Modes[0].Completed;
+                    });
+
+                    // If more than one left, then there exists a level other than heart-side noncompleted
+                    if (filteredLevels.Count > 1)
+                    {
+                        if (logToConsole)
+                            Engine.Commands.Log($"Cannot teleport to heart-side - {filteredLevels.Count - 1} levels to complete for unlock.");
+                        return;
+                    }
+                }
+
+                EntityData level = CollabTeleportModule.Instance.collabChapters.Find(t => t.Attr("map").Equals(dir));
+                TeleportToCollabLevel(player, level, logToConsole);
+            }
+            else
+            {
+                EntityData next = FindNearestNoncompletedCollabLevel(player, logToConsole);
+                if (next != null)
+                    TeleportToCollabLevel(player, next, logToConsole);
+            }
+        }
+
+        public static EntityData FindNearestNoncompletedCollabLevel(Player player, bool logToConsole)
         {
             // Check if player is not null - stop exec if so
             if (player == null)
             {
-                Engine.Commands.Log("player is null for some unknown reason.");
-                return;
+                if (logToConsole)
+                    Engine.Commands.Log("player is null for some unknown reason.");
+                return null;
             }
 
             // Remove collab levels if completed
@@ -32,17 +80,18 @@ namespace Celeste.Mod.CollabTeleport
             // Check if there are no noncompleted collab levels left - return if so
             if (filteredLevels.Count == 0)
             {
-                Engine.Commands.Log("No noncompleted collab levels found.");
-                return;
+                if (logToConsole)
+                    Engine.Commands.Log("No noncompleted collab levels found.");
+                return null;
             }
 
-            Engine.Commands.Log($"{filteredLevels.Count} noncompleted collab levels found.");
+            if (logToConsole)
+                Engine.Commands.Log($"{filteredLevels.Count} noncompleted collab levels found.");
 
             // Find closest collab level from player
             float minDist = float.PositiveInfinity;
             Vector2 pos = player.Position;
-            int w = 0, h = 0;
-            string nextMap = "unknown";
+            EntityData entity = null;
             foreach (EntityData t in filteredLevels)
             {
                 string name = t.Attr("map");
@@ -66,13 +115,25 @@ namespace Celeste.Mod.CollabTeleport
                     if (dist < minDist)
                     {
                         minDist = dist;
-                        pos = t.Position;
-                        w = t.Width;
-                        h = t.Height;
-                        nextMap = name;
+                        entity = t;
                     }
                 }
             }
+            return entity;
+        }
+
+        public static void TeleportToCollabLevel(Player player, EntityData t, bool logToConsole)
+        {
+            // Check if player is not null - stop exec if so
+            if (player == null)
+            {
+                if (logToConsole)
+                    Engine.Commands.Log("player is null for some unknown reason.");
+                return;
+            }
+
+            Vector2 pos = t.Position;
+            int w = t.Width, h = t.Height;
 
             // Find open air in trigger box
             // Bruteforce for now since I'm too stupid to find a better solution
@@ -93,7 +154,8 @@ namespace Celeste.Mod.CollabTeleport
             if (v.HasValue)
             {
                 // Teleport player to position
-                Engine.Commands.Log($"Teleporting to {nextMap} .");
+                if (logToConsole)
+                    Engine.Commands.Log($"Teleporting to {t.Attr("map")} .");
                 player.Position = v.Value;
 
                 // Set player state to normal if it is currently in an intro-type (entering chapter)
@@ -107,7 +169,8 @@ namespace Celeste.Mod.CollabTeleport
             else
             {
                 // Can't find open air - do nothing
-                Engine.Commands.Log($"No open spot found in trigger near {pos} .");
+                if (logToConsole)
+                    Engine.Commands.Log($"No open spot found in trigger near {pos} .");
             }
         }
     }
