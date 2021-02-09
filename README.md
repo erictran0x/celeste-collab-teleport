@@ -6,7 +6,7 @@ CollabTeleport is a Celeste mod that allows players to teleport to the next coll
 
 This mod adds two new debug commands:
 - `collabtp (mapname: optional)` - Teleport player to specified map name. Default: nearest noncompleted level from player
-  - Note: spaces must be replaced with underscores
+  - Note: spaces must be replaced with underscores in `mapname` parameter
 - `collablist` - List all collab levels found in current lobby.
 
 # Usage
