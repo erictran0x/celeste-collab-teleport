@@ -80,10 +80,23 @@ namespace Celeste.Mod.CollabTeleport
                 if (sb.HasValue && !speedBerries.ContainsKey(name))
                     speedBerries.Add(name, sb.Value);
 
-                // TODO: handle case where two or more collab maps have the same name
+                // Handle case where two or more collab maps have the same name
                 string dialogKey = Dialog.Get(name).ToLower();
-                if (!levelnameToDirectory[currentLevelSet].ContainsKey(dialogKey))
-                    levelnameToDirectory[currentLevelSet].Add(dialogKey, name);
+                string origDK = dialogKey;
+                bool sameName = true;
+                int numIters = 0;
+                do
+                {
+                    if (!levelnameToDirectory[currentLevelSet].ContainsKey(dialogKey))
+                    {
+                        levelnameToDirectory[currentLevelSet].Add(dialogKey, name);
+                        sameName = false;
+                    }
+                    else
+                    {
+                        dialogKey = $"{origDK}({++numIters})";
+                    }
+                } while (sameName);
             }
 
             // Get silver and speed berry data
