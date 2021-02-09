@@ -113,25 +113,26 @@ namespace Celeste.Mod.CollabTeleport
                 string map = t.Attr("map");
                 AreaStats a = SaveData.Instance.GetAreaStatsFor(foundAreas[map]);
 
-                Func<bool> hasGoldTime = () => a.Modes[0].Strawberries.Contains(speedBerries[map].ID) && TimeSpan.FromTicks(pbTimes[map]).TotalSeconds <= speedBerries[map].Time;
-
-                Func<bool> hasDeathless = () => CollabUtils2Helper.IsHeartSide(map) ?
-                            AreaData.GetMode(foundAreas[map]).MapData.Goldenberries.Exists(b => a.Modes[0].Strawberries.Contains(new EntityID(b.Level.Name, b.ID)))
-                            : a.Modes[0].Strawberries.Contains(silverBerries[map]);
-
                 switch (Settings.IgnoreLevelBy)
                 {
                     case CollabTeleportSettings.FilterType.BothBerries:
-                        return !hasGoldTime() && !hasDeathless();
+                        return !HasGoldTime(a, map) && !HasDeathless(a, map);
                     case CollabTeleportSettings.FilterType.GoldSpeedberry:
-                        return !hasGoldTime();
+                        return !HasGoldTime(a, map);
                     case CollabTeleportSettings.FilterType.DeathlessBerry:
-                        return !hasDeathless();
+                        return !HasDeathless(a, map);
                     case CollabTeleportSettings.FilterType.ClearOnly:
                     default:
                         return !a.Modes[0].Completed;
                 }
             });
+
+        private bool HasGoldTime(AreaStats a, string map) =>
+            a.Modes[0].Strawberries.Contains(speedBerries[map].ID) && TimeSpan.FromTicks(pbTimes[map]).TotalSeconds <= speedBerries[map].Time;
+
+        private bool HasDeathless(AreaStats a, string map) => CollabUtils2Helper.IsHeartSide(map) ?
+            AreaData.GetMode(foundAreas[map]).MapData.Goldenberries.Exists(b => a.Modes[0].Strawberries.Contains(new EntityID(b.Level.Name, b.ID)))
+            : a.Modes[0].Strawberries.Contains(silverBerries[map]);
 
         public bool TryGetLevelname(string levelname, out string dir) =>
             levelnameToDirectory[currentLevelSet].TryGetValue(levelname.Replace("_", " ").ToLower(), out dir);
