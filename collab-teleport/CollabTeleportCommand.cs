@@ -11,7 +11,7 @@ namespace Celeste.Mod.CollabTeleport
         [Command("collabtp", "Teleports to specified collab level (replace spaces with underscores). Default: nearest noncompleted")]
         private static void HandleCollabTP(string mapname)
         {
-            TeleportToCollabLevel(Engine.Scene.Tracker.GetEntity<Player>(), mapname, true);
+            TeleportToCollabLevel(Engine.Scene.Tracker.GetEntity<Player>(), mapname);
         }
 
         [Command("collablist", "List all collab levels.")]
@@ -20,23 +20,21 @@ namespace Celeste.Mod.CollabTeleport
             Engine.Commands.Log(CollabTeleportModule.Instance.ListAllCollabMaps());
         }
 
-        public static void TeleportToCollabLevel(Player player, string mapname, bool logToConsole)
+        public static void TeleportToCollabLevel(Player player, string mapname)
         {
             if (!string.IsNullOrEmpty(mapname))
             {
                 // Check if player is not null - stop exec if so
                 if (player == null)
                 {
-                    if (logToConsole)
-                        Engine.Commands.Log("player is null for some unknown reason.");
+                    Engine.Commands.Log("player is null for some unknown reason.");
                     return;
                 }
 
                 // Check if map can be searched by name - stop exec if not found
                 if (!CollabTeleportModule.Instance.TryGetLevelname(mapname, out string dir))
                 {
-                    if (logToConsole)
-                        Engine.Commands.Log($"Unable to find {mapname} .");
+                    Engine.Commands.Log($"Unable to find {mapname} .");
                     return;
                 }
 
@@ -47,30 +45,26 @@ namespace Celeste.Mod.CollabTeleport
                     // If more than one left, then there exists a level other than heart-side noncompleted
                     if (filteredLevels.Count > 1)
                     {
-                        if (logToConsole)
-                            Engine.Commands.Log($"Cannot teleport to heart-side - {filteredLevels.Count - 1} levels to complete for unlock.");
+                        Engine.Commands.Log($"Cannot teleport to heart-side - {filteredLevels.Count - 1} levels to complete for unlock.");
                         return;
                     }
                 }
 
                 EntityData level = CollabTeleportModule.Instance.collabChapters.Find(t => t.Attr("map").Equals(dir));
-                TeleportToCollabLevel(player, level, logToConsole);
+                TeleportToCollabLevel(player, level);
             }
             else
             {
                 List<EntityData> filteredLevels = CollabTeleportModule.Instance.GetFilteredCollabLevels(CollabTeleportModule.Settings.IgnoreLevelBy);
-                if (logToConsole)
-                    Engine.Commands.Log($"{filteredLevels.Count} noncompleted collab level(s) found.");
+                Engine.Commands.Log($"{filteredLevels.Count} noncompleted collab level(s) found.");
 
+                // Ignore heart-side if there is more than one collab level available
                 if (filteredLevels.Count > 1)
-                {
-                    // Ignore heart-side if there is more than one collab level available
                     filteredLevels = filteredLevels.FindAll(t => !CollabUtils2Helper.IsHeartSide(t.Attr("map")));
-                }
 
                 EntityData next = FindNearestEntityFromPosition(player.Position - CollabTeleportModule.Instance.currentLevel.LevelOffset, filteredLevels);
                 if (next != null)
-                    TeleportToCollabLevel(player, next, logToConsole);
+                    TeleportToCollabLevel(player, next);
             }
         }
 
@@ -113,7 +107,7 @@ namespace Celeste.Mod.CollabTeleport
             return near;
         }
 
-        private static void TeleportToCollabLevel(Player player, EntityData t, bool logToConsole)
+        private static void TeleportToCollabLevel(Player player, EntityData t)
         {
             Vector2 pos = t.Position;
             int w = t.Width, h = t.Height;
@@ -138,15 +132,13 @@ namespace Celeste.Mod.CollabTeleport
             if (v.HasValue)
             {
                 // Teleport player to position
-                if (logToConsole)
-                    Engine.Commands.Log($"Teleporting to {t.Attr("map")} .");
+                Engine.Commands.Log($"Teleporting to {t.Attr("map")} .");
                 player.Position = v.Value;
             }
             else
             {
                 // Can't find open air - teleport to nearest spawnpoint instead
-                if (logToConsole)
-                    Engine.Commands.Log($"No open spot found in trigger near {pos} .");
+                Engine.Commands.Log($"No open spot found in trigger near {pos} .");
                 List<Vector2> spawnpoints = CollabTeleportModule.Instance.currentLevel.Session.LevelData.Spawns.Select(vec => vec - offset).ToList();
                 player.Position = offset + FindNearestPointFromPosition(pos, spawnpoints);
             }

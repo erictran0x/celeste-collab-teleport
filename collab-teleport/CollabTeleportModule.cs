@@ -53,10 +53,7 @@ namespace Celeste.Mod.CollabTeleport
 
             // Only handle lobbies
             if (!CollabUtils2Helper.IsLobby(level.Session.Area.SID))
-            {
-                autoTPed = false;
                 return;
-            }
 
             // Get all ChapterPanelTriggers from current level, ignoring gyms and lobbies
             collabChapters = level.Session.LevelData.Triggers.FindAll(t =>
@@ -94,9 +91,7 @@ namespace Celeste.Mod.CollabTeleport
                         sameName = false;
                     }
                     else
-                    {
                         dialogKey = $"{origDK}({++numIters})";
-                    }
                 } while (sameName);
             }
 
@@ -107,7 +102,7 @@ namespace Celeste.Mod.CollabTeleport
             // Only auto-teleport player once
             if (currentPlayer != null && !autoTPed && Settings.AutoTeleportOnComplete)
             {
-                CollabTeleportCommand.TeleportToCollabLevel(currentPlayer, (string)null, false);
+                CollabTeleportCommand.TeleportToCollabLevel(currentPlayer, null);
                 autoTPed = true;
             }
         }
