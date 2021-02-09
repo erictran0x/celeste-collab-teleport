@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using FilterType = Celeste.Mod.CollabTeleport.CollabTeleportSettings.FilterType;
 
 namespace Celeste.Mod.CollabTeleport
 {
@@ -121,20 +122,20 @@ namespace Celeste.Mod.CollabTeleport
             currentPlayer = obj;
         }
 
-        public List<EntityData> GetFilteredCollabLevels() => collabChapters.FindAll(t =>
+        public List<EntityData> GetFilteredCollabLevels(FilterType ft) => collabChapters.FindAll(t =>
             {
                 string map = t.Attr("map");
                 AreaStats a = SaveData.Instance.GetAreaStatsFor(foundAreas[map]);
 
-                switch (Settings.IgnoreLevelBy)
+                switch (ft)
                 {
-                    case CollabTeleportSettings.FilterType.BothBerries:
+                    case FilterType.BothBerries:
                         return !HasGoldTime(a, map) && !HasDeathless(a, map);
-                    case CollabTeleportSettings.FilterType.GoldSpeedberry:
+                    case FilterType.GoldSpeedberry:
                         return !HasGoldTime(a, map);
-                    case CollabTeleportSettings.FilterType.DeathlessBerry:
+                    case FilterType.DeathlessBerry:
                         return !HasDeathless(a, map);
-                    case CollabTeleportSettings.FilterType.ClearOnly:
+                    case FilterType.ClearOnly:
                     default:
                         return !a.Modes[0].Completed;
                 }
