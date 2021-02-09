@@ -8,13 +8,13 @@ namespace Celeste.Mod.CollabTeleport
     public class CollabTeleportCommand
     {
         [Command("collabtp", "Teleports to specified collab level (replace spaces with underscores). Default: nearest noncompleted")]
-        public static void HandleCollabTP(string mapname)
+        private static void HandleCollabTP(string mapname)
         {
             TeleportToCollabLevel(Engine.Scene.Tracker.GetEntity<Player>(), mapname, true);
         }
 
         [Command("collablist", "List all collab levels.")]
-        public static void HandleCollabList()
+        private static void HandleCollabList()
         {
             Engine.Commands.Log(CollabTeleportModule.Instance.ListAllCollabMaps());
         }
@@ -55,7 +55,7 @@ namespace Celeste.Mod.CollabTeleport
             }
         }
 
-        public static EntityData FindNearestNoncompletedCollabLevel(Player player, bool logToConsole)
+        private static EntityData FindNearestNoncompletedCollabLevel(Player player, bool logToConsole)
         {
             // Check if player is not null - stop exec if so
             if (player == null)
@@ -106,7 +106,7 @@ namespace Celeste.Mod.CollabTeleport
             return entity;
         }
 
-        public static void TeleportToCollabLevel(Player player, EntityData t, bool logToConsole)
+        private static void TeleportToCollabLevel(Player player, EntityData t, bool logToConsole)
         {
             // Check if player is not null - stop exec if so
             if (player == null)
