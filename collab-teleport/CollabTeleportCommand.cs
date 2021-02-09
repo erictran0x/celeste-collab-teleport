@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Monocle;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.CollabTeleport
@@ -23,6 +24,14 @@ namespace Celeste.Mod.CollabTeleport
         {
             if (!string.IsNullOrEmpty(mapname))
             {
+                // Check if player is not null - stop exec if so
+                if (player == null)
+                {
+                    if (logToConsole)
+                        Engine.Commands.Log("player is null for some unknown reason.");
+                    return;
+                }
+
                 // Check if map can be searched by name - stop exec if not found
                 if (!CollabTeleportModule.Instance.TryGetLevelname(mapname, out string dir))
                 {
@@ -33,7 +42,7 @@ namespace Celeste.Mod.CollabTeleport
 
                 if (CollabUtils2Helper.IsHeartSide(dir))
                 {
-                    List<EntityData> filteredLevels = CollabTeleportModule.Instance.GetFilteredCollabLevels();
+                    List<EntityData> filteredLevels = CollabTeleportModule.Instance.GetFilteredCollabLevels(CollabTeleportSettings.FilterType.ClearOnly);
 
                     // If more than one left, then there exists a level other than heart-side noncompleted
                     if (filteredLevels.Count > 1)
@@ -49,53 +58,35 @@ namespace Celeste.Mod.CollabTeleport
             }
             else
             {
-                EntityData next = FindNearestNoncompletedCollabLevel(player, logToConsole);
+                List<EntityData> filteredLevels = CollabTeleportModule.Instance.GetFilteredCollabLevels(CollabTeleportModule.Settings.IgnoreLevelBy);
+                if (logToConsole)
+                    Engine.Commands.Log($"{filteredLevels.Count} noncompleted collab level(s) found.");
+
+                if (filteredLevels.Count > 1)
+                {
+                    // Ignore heart-side if there is more than one collab level available
+                    filteredLevels = filteredLevels.FindAll(t => !CollabUtils2Helper.IsHeartSide(t.Attr("map")));
+                }
+
+                EntityData next = FindNearestEntityFromPosition(player.Position - CollabTeleportModule.Instance.currentLevel.LevelOffset, filteredLevels);
                 if (next != null)
                     TeleportToCollabLevel(player, next, logToConsole);
             }
         }
 
-        private static EntityData FindNearestNoncompletedCollabLevel(Player player, bool logToConsole)
+        private static EntityData FindNearestEntityFromPosition(Vector2 pos, List<EntityData> data)
         {
-            // Check if player is not null - stop exec if so
-            if (player == null)
-            {
-                if (logToConsole)
-                    Engine.Commands.Log("player is null for some unknown reason.");
-                return null;
-            }
-
-            List<EntityData> filteredLevels = CollabTeleportModule.Instance.GetFilteredCollabLevels();
-
-            // Check if there are no noncompleted collab levels left - return if so
-            if (filteredLevels.Count == 0)
-            {
-                if (logToConsole)
-                    Engine.Commands.Log("No noncompleted collab levels found.");
-                return null;
-            }
-
-            if (logToConsole)
-                Engine.Commands.Log($"{filteredLevels.Count} noncompleted collab levels found.");
-
-            // Find closest collab level from player
             float minDist = float.PositiveInfinity;
             EntityData entity = null;
-            foreach (EntityData t in filteredLevels)
+            foreach (EntityData t in data)
             {
-                string name = t.Attr("map");
-
-                // Ignore heart-side if there is more than one collab level available
-                if (filteredLevels.Count > 1 && CollabUtils2Helper.IsHeartSide(name))
-                    continue;
-
-                Vector2 diff = t.Position - player.Position + CollabTeleportModule.Instance.currentLevel.LevelOffset;
+                Vector2 diff = t.Position - pos;
 
                 // Calculate min horiz and vert distances
                 float ddx = Math.Min(Math.Abs(diff.X), Math.Abs(diff.X + t.Width));
                 float ddy = Math.Min(Math.Abs(diff.Y), Math.Abs(diff.Y + t.Height));
 
-                // Compare current highest dist
+                // Compare current highest Euclidean dist
                 float dist = (float)(Math.Pow(ddx, 2) + Math.Pow(ddy, 2));
                 if (dist < minDist)
                 {
@@ -106,16 +97,24 @@ namespace Celeste.Mod.CollabTeleport
             return entity;
         }
 
+        private static Vector2 FindNearestPointFromPosition(Vector2 pos, List<Vector2> points)
+        {
+            float minDist = float.PositiveInfinity;
+            Vector2 near = Vector2.Zero;
+            foreach (Vector2 p in points)
+            {
+                float dist = (p - pos).LengthSquared();
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    near = p;
+                }
+            }
+            return near;
+        }
+
         private static void TeleportToCollabLevel(Player player, EntityData t, bool logToConsole)
         {
-            // Check if player is not null - stop exec if so
-            if (player == null)
-            {
-                if (logToConsole)
-                    Engine.Commands.Log("player is null for some unknown reason.");
-                return;
-            }
-
             Vector2 pos = t.Position;
             int w = t.Width, h = t.Height;
 
@@ -142,23 +141,29 @@ namespace Celeste.Mod.CollabTeleport
                 if (logToConsole)
                     Engine.Commands.Log($"Teleporting to {t.Attr("map")} .");
                 player.Position = v.Value;
-
-                // Set player state to normal if it is currently in an intro-type (entering chapter)
-                if (player.StateMachine.State >= 12 && player.StateMachine.State <= 15
-                    || player.StateMachine.State == 23
-                    || player.StateMachine.State == 25)
-                    player.StateMachine.State = 0;
-
-                // "Teleport" camera to its target - it'll micro-adjust but would be near player
-                player.CameraAnchorLerp = Vector2.Zero;
-                CollabTeleportModule.Instance.currentLevel.Camera.Position = player.CameraTarget;
             }
             else
             {
-                // Can't find open air - do nothing
+                // Can't find open air - teleport to nearest spawnpoint instead
                 if (logToConsole)
                     Engine.Commands.Log($"No open spot found in trigger near {pos} .");
+                List<Vector2> spawnpoints = CollabTeleportModule.Instance.currentLevel.Session.LevelData.Spawns.Select(vec => vec - offset).ToList();
+                player.Position = offset + FindNearestPointFromPosition(pos, spawnpoints);
             }
+
+            // Set player state to normal if it is currently in an intro-type (entering chapter)
+            if (player.StateMachine.State >= 12 && player.StateMachine.State <= 15
+                || player.StateMachine.State == 23
+                || player.StateMachine.State == 25)
+                player.StateMachine.State = 0;
+
+            // "Teleport" camera to its target - it'll micro-adjust but would be near player
+            player.CameraAnchorLerp = Vector2.Zero;
+            CollabTeleportModule.Instance.currentLevel.Camera.Position = player.CameraTarget;
+
+            // Remove "intro transition" if it's there
+            if (CollabTeleportModule.Instance.currentLevel.Wipe != null)
+                CollabTeleportModule.Instance.currentLevel.Wipe.Completed = true;
         }
     }
 }

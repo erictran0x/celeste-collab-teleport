@@ -1,6 +1,4 @@
-﻿using System.ComponentModel;
-
-namespace Celeste.Mod.CollabTeleport
+﻿namespace Celeste.Mod.CollabTeleport
 {
     public class CollabTeleportSettings : EverestModuleSettings
     {
