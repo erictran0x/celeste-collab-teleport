@@ -9,20 +9,25 @@ namespace Celeste.Mod.CollabTeleport
         public override Type SettingsType => typeof(CollabTeleportSettings);
         public static CollabTeleportSettings Settings => (CollabTeleportSettings)Instance._Settings;
 
-        private bool autoTPed = false;
-
-        public Dictionary<string, AreaStats> foundAreas;
-        public Dictionary<string, string> levelnameToDirectory;
-        public Dictionary<string, EntityID> silverBerries;
         public List<EntityData> collabChapters;
         public Level currentLevel;
+        public string currentLevelSet;
+
+        private bool autoTPed = false;
         private Player currentPlayer;
+        private Dictionary<string, AreaKey> foundAreas;
+        private Dictionary<string, Dictionary<string, string>> levelnameToDirectory;
+        private Dictionary<string, EntityID> silverBerries;
+        private Dictionary<string, CollabUtils2Helper.SpeedBerryInfo> speedBerries;
+        private Dictionary<string, long> pbTimes;
 
         public CollabTeleportModule()
         {
             Instance = this;
-            foundAreas = new Dictionary<string, AreaStats>();
-            levelnameToDirectory = new Dictionary<string, string>();
+            foundAreas = new Dictionary<string, AreaKey>();
+            levelnameToDirectory = new Dictionary<string, Dictionary<string, string>>();
+            speedBerries = new Dictionary<string, CollabUtils2Helper.SpeedBerryInfo>();
+            pbTimes = new Dictionary<string, long>();
             collabChapters = new List<EntityData>();
         }
 
@@ -43,43 +48,47 @@ namespace Celeste.Mod.CollabTeleport
         private void OnLevelLoad(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
         {
             // Init current status
-            foundAreas.Clear();
-            levelnameToDirectory.Clear();
             currentLevel = level;
-            string levelset = null;
 
             // Only handle lobbies
-            if (!level.Session.Area.SID.Contains("/0-Lobbies/"))
+            if (!CollabUtils2Helper.IsLobby(level.Session.Area.SID))
             {
                 autoTPed = false;
                 return;
             }
 
-            // Get all ChapterPanelTriggers from current level
-            collabChapters = level.Session.LevelData.Triggers.FindAll(t => t.Name.Equals("CollabUtils2/ChapterPanelTrigger"));
+            // Get all ChapterPanelTriggers from current level, ignoring gyms and lobbies
+            collabChapters = level.Session.LevelData.Triggers.FindAll(t =>
+                t.Name.Equals("CollabUtils2/ChapterPanelTrigger") && !CollabUtils2Helper.IsGym(t.Attr("map")) && !CollabUtils2Helper.IsLobby(t.Attr("map"))
+            );
 
-            // Map from map name to its AreaStats object
+            // Map from map name to its AreaKey object
             foreach (EntityData t in collabChapters)
             {
                 string name = t.Attr("map");
 
-                // Ignore gyms and lobbies
-                if (name.Contains("/0-Gyms/") || name.Contains("/0-Lobbies/"))
-                    continue;
-
                 AreaKey ak = AreaData.Get(name).ToKey();
-                levelset = ak.LevelSet;
+                currentLevelSet = ak.LevelSet;
 
                 if (!foundAreas.ContainsKey(name))
-                {
-                    foundAreas.Add(name, SaveData.Instance.GetAreaStatsFor(ak));
-                    levelnameToDirectory.Add(Dialog.Get(name).ToLower(), name);
-                }
+                    foundAreas.Add(name, ak);
+
+                if (!levelnameToDirectory.ContainsKey(currentLevelSet))
+                    levelnameToDirectory.Add(currentLevelSet, new Dictionary<string, string>());
+
+                CollabUtils2Helper.SpeedBerryInfo? sb = CollabUtils2Helper.GetSpeedBerryInfo(name);
+                if (sb.HasValue && !speedBerries.ContainsKey(name))
+                    speedBerries.Add(name, sb.Value);
+
+                // TODO: handle case where two or more collab maps have the same name
+                string dialogKey = Dialog.Get(name).ToLower();
+                if (!levelnameToDirectory[currentLevelSet].ContainsKey(dialogKey))
+                    levelnameToDirectory[currentLevelSet].Add(dialogKey, name);
             }
 
             // Get silver and speed berry data
-            silverBerries = CollabUtils2Helper.GetAllSilverBerries(levelset);
-            // TODO: get speed berry data
+            silverBerries = CollabUtils2Helper.GetSilverBerries(currentLevelSet);
+            pbTimes = CollabUtils2Helper.GetSpeedBerryPBs();
 
             // Only auto-teleport player once
             if (currentPlayer != null && !autoTPed && Settings.AutoTeleportOnComplete)
@@ -98,5 +107,35 @@ namespace Celeste.Mod.CollabTeleport
         {
             currentPlayer = obj;
         }
+
+        public List<EntityData> GetFilteredCollabLevels() => collabChapters.FindAll(t =>
+            {
+                string map = t.Attr("map");
+                AreaStats a = SaveData.Instance.GetAreaStatsFor(foundAreas[map]);
+
+                Func<bool> hasGoldTime = () => a.Modes[0].Strawberries.Contains(speedBerries[map].ID) && TimeSpan.FromTicks(pbTimes[map]).TotalSeconds <= speedBerries[map].Time;
+
+                Func<bool> hasDeathless = () => CollabUtils2Helper.IsHeartSide(map) ?
+                            AreaData.GetMode(foundAreas[map]).MapData.Goldenberries.Exists(b => a.Modes[0].Strawberries.Contains(new EntityID(b.Level.Name, b.ID)))
+                            : a.Modes[0].Strawberries.Contains(silverBerries[map]);
+
+                switch (Settings.IgnoreLevelBy)
+                {
+                    case CollabTeleportSettings.FilterType.BothBerries:
+                        return !hasGoldTime() && !hasDeathless();
+                    case CollabTeleportSettings.FilterType.GoldSpeedberry:
+                        return !hasGoldTime();
+                    case CollabTeleportSettings.FilterType.DeathlessBerry:
+                        return !hasDeathless();
+                    case CollabTeleportSettings.FilterType.ClearOnly:
+                    default:
+                        return !a.Modes[0].Completed;
+                }
+            });
+
+        public bool TryGetLevelname(string levelname, out string dir) =>
+            levelnameToDirectory[currentLevelSet].TryGetValue(levelname.Replace("_", " ").ToLower(), out dir);
+
+        public string ListAllCollabMaps() => string.Join(", ", levelnameToDirectory[currentLevelSet].Keys);
     }
 }

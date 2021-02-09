@@ -16,7 +16,7 @@ namespace Celeste.Mod.CollabTeleport
         [Command("collablist", "List all collab levels.")]
         public static void HandleCollabList()
         {
-            Engine.Commands.Log(string.Join(", ", CollabTeleportModule.Instance.levelnameToDirectory.Keys));
+            Engine.Commands.Log(CollabTeleportModule.Instance.ListAllCollabMaps());
         }
 
         public static void TeleportToCollabLevel(Player player, string mapname, bool logToConsole)
@@ -24,21 +24,16 @@ namespace Celeste.Mod.CollabTeleport
             if (!string.IsNullOrEmpty(mapname))
             {
                 // Check if map can be searched by name - stop exec if not found
-                if (!CollabTeleportModule.Instance.levelnameToDirectory.TryGetValue(mapname.Replace("_", " ").ToLower(), out string dir))
+                if (!CollabTeleportModule.Instance.TryGetLevelname(mapname, out string dir))
                 {
                     if (logToConsole)
                         Engine.Commands.Log($"Unable to find {mapname} .");
                     return;
                 }
 
-                if (dir.EndsWith("ZZ-HeartSide"))
+                if (CollabUtils2Helper.IsHeartSide(dir))
                 {
-                    // Remove collab levels if completed
-                    List<EntityData> filteredLevels = CollabTeleportModule.Instance.collabChapters.FindAll(t =>
-                    {
-                        bool success = CollabTeleportModule.Instance.foundAreas.TryGetValue(t.Attr("map"), out AreaStats a);
-                        return success && !a.Modes[0].Completed;
-                    });
+                    List<EntityData> filteredLevels = CollabTeleportModule.Instance.GetFilteredCollabLevels();
 
                     // If more than one left, then there exists a level other than heart-side noncompleted
                     if (filteredLevels.Count > 1)
@@ -70,12 +65,7 @@ namespace Celeste.Mod.CollabTeleport
                 return null;
             }
 
-            // Remove collab levels if completed
-            List<EntityData> filteredLevels = CollabTeleportModule.Instance.collabChapters.FindAll(t =>
-            {
-                bool success = CollabTeleportModule.Instance.foundAreas.TryGetValue(t.Attr("map"), out AreaStats a);
-                return success && !a.Modes[0].Completed;
-            });
+            List<EntityData> filteredLevels = CollabTeleportModule.Instance.GetFilteredCollabLevels();
 
             // Check if there are no noncompleted collab levels left - return if so
             if (filteredLevels.Count == 0)
@@ -90,33 +80,27 @@ namespace Celeste.Mod.CollabTeleport
 
             // Find closest collab level from player
             float minDist = float.PositiveInfinity;
-            Vector2 pos = player.Position;
             EntityData entity = null;
             foreach (EntityData t in filteredLevels)
             {
                 string name = t.Attr("map");
 
                 // Ignore heart-side if there is more than one collab level available
-                if (filteredLevels.Count > 1 && name.EndsWith("ZZ-HeartSide"))
+                if (filteredLevels.Count > 1 && CollabUtils2Helper.IsHeartSide(name))
                     continue;
 
-                // Calculate distance if area exists
-                if (CollabTeleportModule.Instance.foundAreas.TryGetValue(name, out AreaStats area))
+                Vector2 diff = t.Position - player.Position + CollabTeleportModule.Instance.currentLevel.LevelOffset;
+
+                // Calculate min horiz and vert distances
+                float ddx = Math.Min(Math.Abs(diff.X), Math.Abs(diff.X + t.Width));
+                float ddy = Math.Min(Math.Abs(diff.Y), Math.Abs(diff.Y + t.Height));
+
+                // Compare current highest dist
+                float dist = (float)(Math.Pow(ddx, 2) + Math.Pow(ddy, 2));
+                if (dist < minDist)
                 {
-                    // Get distance vector
-                    Vector2 diff = t.Position - player.Position + CollabTeleportModule.Instance.currentLevel.LevelOffset;
-
-                    // Calculate min horiz and vert distances
-                    float ddx = Math.Min(Math.Abs(diff.X), Math.Abs(diff.X + t.Width));
-                    float ddy = Math.Min(Math.Abs(diff.Y), Math.Abs(diff.Y + t.Height));
-
-                    // Compare current highest dist
-                    float dist = (float)(Math.Pow(ddx, 2) + Math.Pow(ddy, 2));
-                    if (dist < minDist)
-                    {
-                        minDist = dist;
-                        entity = t;
-                    }
+                    minDist = dist;
+                    entity = t;
                 }
             }
             return entity;
@@ -137,13 +121,14 @@ namespace Celeste.Mod.CollabTeleport
 
             // Find open air in trigger box
             // Bruteforce for now since I'm too stupid to find a better solution
+            Vector2 offset = CollabTeleportModule.Instance.currentLevel.LevelOffset;
             Vector2? v = null;
             for (int j = 0; j <= h/2; j += 4)  // middle to vertical edges
             {
                 for (int i = 0; i <= w; i += 7)  // left to right
                 {
-                    Vector2 v_top = CollabTeleportModule.Instance.currentLevel.LevelOffset + new Vector2(pos.X + i, pos.Y + h/2 - j);
-                    Vector2 v_bot = CollabTeleportModule.Instance.currentLevel.LevelOffset + new Vector2(pos.X + i, pos.Y + h/2 + j);
+                    Vector2 v_top = offset + new Vector2(pos.X + i, pos.Y + h/2 - j);
+                    Vector2 v_bot = offset + new Vector2(pos.X + i, pos.Y + h/2 + j);
                     if (!player.CollideCheck<Solid>(v_top))
                         v = v_top;
                     else if (!player.CollideCheck<Solid>(v_bot))
@@ -159,7 +144,9 @@ namespace Celeste.Mod.CollabTeleport
                 player.Position = v.Value;
 
                 // Set player state to normal if it is currently in an intro-type (entering chapter)
-                if (player.StateMachine.State >= 12 && player.StateMachine.State <= 15 || player.StateMachine.State == 23 || player.StateMachine.State == 25)
+                if (player.StateMachine.State >= 12 && player.StateMachine.State <= 15
+                    || player.StateMachine.State == 23
+                    || player.StateMachine.State == 25)
                     player.StateMachine.State = 0;
 
                 // "Teleport" camera to its target - it'll micro-adjust but would be near player
