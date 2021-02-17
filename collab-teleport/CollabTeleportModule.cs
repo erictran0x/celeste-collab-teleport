@@ -79,7 +79,7 @@ namespace Celeste.Mod.CollabTeleport
                     speedBerries.Add(name, sb.Value);
 
                 // Handle case where two or more collab maps have the same name
-                string dialogKey = Dialog.Get(name).ToLower();
+                string dialogKey = Dialog.Get(name).ToLower().Replace(' ', '_');
                 string origDK = dialogKey;
                 bool sameName = true;
                 int numIters = 0;
