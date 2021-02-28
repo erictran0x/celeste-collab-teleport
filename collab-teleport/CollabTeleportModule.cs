@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using System.Collections.Generic;
 using FilterType = Celeste.Mod.CollabTeleport.CollabTeleportSettings.FilterType;
 
@@ -78,8 +79,18 @@ namespace Celeste.Mod.CollabTeleport
                 if (sb.HasValue && !speedBerries.ContainsKey(name))
                     speedBerries.Add(name, sb.Value);
 
-                // Handle case where two or more collab maps have the same name
                 string dialogKey = Dialog.Get(name).ToLower().Replace(' ', '_');
+
+                // Handle case where there are non-ASCII-printable chars in name
+                StringBuilder dialogKeySB = new StringBuilder(dialogKey);
+                for (int i = 0; i < dialogKey.Length; ++i)
+                {
+                    if (dialogKeySB[i] < 32 || dialogKeySB[i] > 127)
+                        dialogKeySB[i] = '*';
+                }
+                dialogKey = dialogKeySB.ToString();
+
+                // Handle case where two or more collab maps have the same name
                 string origDK = dialogKey;
                 bool sameName = true;
                 int numIters = 0;
@@ -144,7 +155,7 @@ namespace Celeste.Mod.CollabTeleport
             : a.Modes[0].Strawberries.Contains(silverBerries[map]);
 
         public bool TryGetLevelname(string levelname, out string dir) =>
-            levelnameToDirectory[currentLevelSet].TryGetValue(levelname.Replace("_", " ").ToLower(), out dir);
+            levelnameToDirectory[currentLevelSet].TryGetValue(levelname.ToLower(), out dir);
 
         public string ListAllCollabMaps() => string.Join(", ", levelnameToDirectory[currentLevelSet].Keys);
     }
