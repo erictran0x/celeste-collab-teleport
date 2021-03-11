@@ -143,16 +143,19 @@ namespace Celeste.Mod.CollabTeleport
                         return !HasDeathless(a, map);
                     case FilterType.ClearOnly:
                     default:
-                        return !a.Modes[0].Completed;
+                        return !HasCleared(a, map);
                 }
             });
 
-        private bool HasGoldTime(AreaStats a, string map) =>
-            a.Modes[0].Strawberries.Contains(speedBerries[map].ID) && TimeSpan.FromTicks(pbTimes[map]).TotalSeconds <= speedBerries[map].Time;
+        private bool HasCleared(AreaStats a, string map) => a.Modes[0].Completed;
+
+        private bool HasGoldTime(AreaStats a, string map) => speedBerries.ContainsKey(map) ?
+            a.Modes[0].Strawberries.Contains(speedBerries[map].ID) && TimeSpan.FromTicks(pbTimes[map]).TotalSeconds <= speedBerries[map].Time
+            : HasCleared(a, map);
 
         private bool HasDeathless(AreaStats a, string map) => CollabUtils2Helper.IsHeartSide(map) ?
             AreaData.GetMode(foundAreas[map]).MapData.Goldenberries.Exists(b => a.Modes[0].Strawberries.Contains(new EntityID(b.Level.Name, b.ID)))
-            : a.Modes[0].Strawberries.Contains(silverBerries[map]);
+            : (silverBerries.ContainsKey(map) ? a.Modes[0].Strawberries.Contains(silverBerries[map]) : HasCleared(a, map));
 
         public bool TryGetLevelname(string levelname, out string dir) =>
             levelnameToDirectory[currentLevelSet].TryGetValue(levelname.ToLower(), out dir);

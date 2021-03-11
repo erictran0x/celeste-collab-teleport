@@ -30,7 +30,7 @@ namespace Celeste.Mod.CollabTeleport
             if (f != null)
             {
                 Dictionary<string, Dictionary<string, EntityID>> v = (Dictionary<string, Dictionary<string, EntityID>>)f.GetValue(null);
-                return v[levelset];
+                return v[levelset] != null ? v[levelset] : new Dictionary<string, EntityID>();
             }
             return null;
         }
@@ -46,6 +46,10 @@ namespace Celeste.Mod.CollabTeleport
             if (f != null)
             {
                 IDictionary v = (IDictionary)f.GetValue(null);
+
+                // Check if speedberries exist
+                if (v[sid] == null)
+                    return null;
 
                 // Init CollabMapDataProcessor.SpeedBerryInfo if needed
                 if (typeSBI == null)
