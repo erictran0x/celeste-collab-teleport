@@ -30,7 +30,7 @@ namespace Celeste.Mod.CollabTeleport
             if (f != null)
             {
                 Dictionary<string, Dictionary<string, EntityID>> v = (Dictionary<string, Dictionary<string, EntityID>>)f.GetValue(null);
-                return v[levelset] != null ? v[levelset] : new Dictionary<string, EntityID>();
+                return v != null ? v[levelset] : new Dictionary<string, EntityID>();
             }
             return null;
         }
