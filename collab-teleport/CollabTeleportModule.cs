@@ -62,6 +62,7 @@ namespace Celeste.Mod.CollabTeleport
             );
 
             // Map from map name to its AreaKey object
+            bool notFound = false;
             foreach (EntityData t in collabChapters)
             {
                 string name = t.Attr("map");
@@ -73,7 +74,12 @@ namespace Celeste.Mod.CollabTeleport
                     foundAreas.Add(name, ak);
 
                 if (!levelnameToDirectory.ContainsKey(currentLevelSet))
+                {
                     levelnameToDirectory.Add(currentLevelSet, new Dictionary<string, string>());
+                    notFound = true;
+                }
+                else if (!notFound)
+                    break;
 
                 CollabUtils2Helper.SpeedBerryInfo? sb = CollabUtils2Helper.GetSpeedBerryInfo(name);
                 if (sb.HasValue && !speedBerries.ContainsKey(name))
