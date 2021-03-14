@@ -21,6 +21,9 @@ namespace Celeste.Mod.CollabTeleport
 
         public static Dictionary<string, EntityID> GetSilverBerries(string levelset)
         {
+            if (levelset == null)
+                return new Dictionary<string, EntityID>();
+
             // Init CollabMapDataProcessor type if needed
             if (typeCMDP == null)
                 typeCMDP = Type.GetType(COLLAB_MAP_DATA_PROCESSOR, true);
@@ -37,6 +40,9 @@ namespace Celeste.Mod.CollabTeleport
 
         public static SpeedBerryInfo? GetSpeedBerryInfo(string sid)
         {
+            if (sid == null)
+                return null;
+
             // Init CollabMapDataProcessor type if needed
             if (typeCMDP == null)
                 typeCMDP = Type.GetType(COLLAB_MAP_DATA_PROCESSOR, true);
