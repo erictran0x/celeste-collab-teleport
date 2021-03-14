@@ -132,7 +132,7 @@ namespace Celeste.Mod.CollabTeleport
             if (v.HasValue)
             {
                 // Teleport player to position
-                Engine.Commands.Log($"Teleporting to {t.Attr("map")} .");
+                Engine.Commands.Log($"Teleporting to {t.Attr("map")} . ({v.Value.X}, {v.Value.Y})");
                 player.Position = v.Value;
             }
             else
