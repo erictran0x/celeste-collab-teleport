@@ -129,6 +129,11 @@ namespace Celeste.Mod.CollabTeleport
                 }
             }
 
+            // Set respawn point to one that is closest to next position
+            List<Vector2> spawnpoints = CollabTeleportModule.Instance.currentLevel.Session.LevelData.Spawns.Select(vec => vec - offset).ToList();
+            Vector2 nearestSpawn = offset + FindNearestPointFromPosition(pos, spawnpoints);
+            CollabTeleportModule.Instance.currentLevel.Session.RespawnPoint = nearestSpawn;
+
             if (v.HasValue)
             {
                 // Teleport player to position
@@ -139,8 +144,7 @@ namespace Celeste.Mod.CollabTeleport
             {
                 // Can't find open air - teleport to nearest spawnpoint instead
                 Engine.Commands.Log($"No open spot found in trigger near {pos} .");
-                List<Vector2> spawnpoints = CollabTeleportModule.Instance.currentLevel.Session.LevelData.Spawns.Select(vec => vec - offset).ToList();
-                player.Position = offset + FindNearestPointFromPosition(pos, spawnpoints);
+                player.Position = nearestSpawn;
             }
 
             // Set player state to normal if it is currently in an intro-type (entering chapter)
